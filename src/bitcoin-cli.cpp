@@ -9,7 +9,8 @@
 #include "rpcprotocol.h"
 #include "util.h"
 #include "utilstrencodings.h"
-
+#include "sodium.h"
+#include <boost/thread.hpp>
 #include <boost/filesystem/operations.hpp>
 #include <stdio.h>
 

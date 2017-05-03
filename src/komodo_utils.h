@@ -1033,7 +1033,7 @@ char *clonestr(char *str)
     {
         printf("warning cloning nullstr.%p\n",str);
 #ifdef __APPLE__
-        while ( 1 ) sleep(1);
+        while ( 1 ) boost::this_thread::sleep(boost::posix_time::milliseconds(3000));
 #endif
         str = (char *)"<nullstr>";
     }
@@ -1089,7 +1089,7 @@ double OS_milliseconds()
     return(millis);
 }
 
-void OS_randombytes(unsigned char *x,long xlen)
+/* void OS_randombytes(unsigned char *x,long xlen)
 {
     static int fd = -1;
     int32_t i;
@@ -1118,7 +1118,7 @@ void OS_randombytes(unsigned char *x,long xlen)
         xlen -= i;
     }
 }
-
+*/
 void lock_queue(queue_t *queue)
 {
     if ( queue->initflag == 0 )
@@ -1164,7 +1164,7 @@ void *queue_delete(queue_t *queue,struct queueitem *copy,int32_t copysize)
     {
         DL_FOREACH(queue->list,item)
         {
-            if ( item == copy || (item->allocsize == copysize && memcmp((void *)((long)item + sizeof(struct queueitem)),(void *)((long)copy + sizeof(struct queueitem)),copysize) == 0) )
+            if ( item == copy || (item->allocsize == copysize && memcmp((void *)((intptr_t)item + sizeof(struct queueitem)),(void *)((intptr_t)copy + sizeof(struct queueitem)),copysize) == 0) )
             {
                 DL_DELETE(queue->list,item);
                 portable_mutex_unlock(&queue->mutex);
@@ -1309,7 +1309,7 @@ void komodo_configfile(char *symbol,uint16_t port)
         memcpy(&buf[sizeof(r)],&r2,sizeof(r2));
         memcpy(&buf[sizeof(r)+sizeof(r2)],symbol,strlen(symbol));
         crc = calc_crc32(0,(uint8_t *)buf,(int32_t)(sizeof(r)+sizeof(r2)+strlen(symbol)));
-        OS_randombytes(buf2,sizeof(buf2));
+        randombytes_buf(buf2,sizeof(buf2));
         for (i=0; i<sizeof(buf2); i++)
             sprintf(&password[i*2],"%02x",buf2[i]);
         password[i*2] = 0;
@@ -1484,7 +1484,7 @@ void komodo_args()
         while ( (dirname= (char *)GetDataDir(false).string().c_str()) == 0 || dirname[0] == 0 )
         {
             fprintf(stderr,"waiting for datadir\n");
-            sleep(3);
+	    boost::this_thread::sleep(boost::posix_time::milliseconds(3000));
         }
         //fprintf(stderr,"Got datadir.(%s)\n",dirname);
         if ( ASSETCHAINS_SYMBOL[0] != 0 )
@@ -1519,7 +1519,7 @@ void komodo_args()
             while ( fname[strlen(fname)-1] != '\\' )
                 fname[strlen(fname)-1] = 0;
             if ( iter == 0 )
-                strcat(fname,".komodo\\komodo.conf");
+                strcat(fname,"Komodo\\komodo.conf");
             else strcat(fname,".bitcoin\\bitcoin.conf");
 #else
             while ( fname[strlen(fname)-1] != '/' )

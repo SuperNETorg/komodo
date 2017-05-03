@@ -113,7 +113,7 @@ bool AppInit(int argc, char* argv[])
         {
             //if ( komodo_is_issuer() != 0 )
             //    komodo_passport_iteration();
-            sleep(1);
+	  boost::this_thread::sleep_for(boost::chrono::seconds(1));
         }
         printf("initialized %s\n",ASSETCHAINS_SYMBOL);
         if (!boost::filesystem::is_directory(GetDataDir(false)))
