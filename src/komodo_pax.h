@@ -704,9 +704,9 @@ void komodo_paxpricefeed(int32_t height,uint8_t *pricefeed,int32_t opretlen)
     if ( 1 )
     {
         int32_t i;
-        for (i=0; i<numpvals; i++)
-            printf("%u ",pvals[i]);
-        printf("komodo_paxpricefeed vout OP_RETURN.%d prices numpvals.%d opretlen.%d kmdbtc %.8f BTCUSD %.8f CNYUSD %.8f\n",height,numpvals,opretlen,KMDBTC,BTCUSD,CNYUSD);
+        //for (i=0; i<numpvals; i++)
+            //fprintf(stderr, "%u ",pvals[i]);
+        //printf("komodo_paxpricefeed vout OP_RETURN.%d prices numpvals.%d opretlen.%d kmdbtc %.8f BTCUSD %.8f CNYUSD %.8f\n",height,numpvals,opretlen,KMDBTC,BTCUSD,CNYUSD);
     }
 }
 
