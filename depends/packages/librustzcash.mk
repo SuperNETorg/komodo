@@ -8,12 +8,12 @@ $(package)_git_commit=91348647a86201a9482ad4ad68398152dc3d635e
 $(package)_dependencies=rust
 
 define $(package)_build_cmds
-  cargo build --release
+  ~/.cargo/bin/cargo build --release --target=x86_64-pc-windows-gnu --verbose
 endef
 
 define $(package)_stage_cmds
   mkdir $($(package)_staging_dir)$(host_prefix)/lib/ && \
   mkdir $($(package)_staging_dir)$(host_prefix)/include/ && \
-  cp target/release/librustzcash.a $($(package)_staging_dir)$(host_prefix)/lib/ && \
+  cp target/x86_64-pc-windows-gnu/release/rustzcash.lib $($(package)_staging_dir)$(host_prefix)/lib/ && \
   cp include/librustzcash.h $($(package)_staging_dir)$(host_prefix)/include/
 endef

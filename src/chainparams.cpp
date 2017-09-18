@@ -141,7 +141,7 @@ void *chainparams_commandline(void *ptr)
 {
     while ( ASSETCHAINS_PORT == 0 )
     {
-        sleep(1);
+      boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
     }
     //fprintf(stderr,">>>>>>>> port.%u\n",ASSETCHAINS_PORT);
     if ( ASSETCHAINS_SYMBOL[0] != 0 )
