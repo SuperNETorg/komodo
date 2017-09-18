@@ -1,10 +1,10 @@
 package=libsnark
-$(package)_download_path=https://github.com/radix42/$(package)/archive/
+$(package)_version=0.1
+$(package)_download_path=https://supernetorg.bintray.com/misc/
 $(package)_file_name=$(package)-$($(package)_git_commit).tar.gz
-$(package)_download_file=$($(package)_git_commit).tar.gz
-
-$(package)_sha256_hash=a7663783eb63bb59698d3997372b86a9d1b20dff5336b65fc9ddd9171c46c83d
-$(package)_git_commit=4015f558bb7a1b603de4ee1559c974389d3abb54
+$(package)_download_file=$(package)-$($(package)_git_commit).tar.gz
+$(package)_sha256_hash=47478adc2ae88c448dc736d59dfe007de6478e41e88d2d4d2ff4135a17ee6f90
+$(package)_git_commit=3854b20c25e8bc567aab2b558dec84d45f4a3e73
 
 $(package)_dependencies=libgmp libsodium
 
