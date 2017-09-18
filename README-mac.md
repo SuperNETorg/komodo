@@ -21,7 +21,7 @@ brew install wget
 Get all that installed, then run:
 
 ```shell
-git clone https://github.com/j-cimb-barker/komodo.git
+git clone https://github.com/supernetorg/komodo.git
 cd komodo
 git checkout dev
 ./zcutil/build-mac.sh

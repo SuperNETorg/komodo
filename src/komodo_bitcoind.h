@@ -15,13 +15,8 @@
 
 // komodo functions that interact with bitcoind C++
 
-#ifdef _WIN32
-#include <curl.h>
-#include <easy.h>
-#else
 #include <curl/curl.h>
 #include <curl/easy.h>
-#endif
 
 #define issue_curl(cmdstr) bitcoind_RPC(0,(char *)"curl",(char *)"http://127.0.0.1:7776",0,0,(char *)(cmdstr))
 

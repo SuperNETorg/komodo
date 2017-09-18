@@ -24,6 +24,8 @@
  z_sendmany "fromaddress" [{"address":... ,"amount":..., "memo":"<hex>"},...] ( minconf ) ( fee )
  */
 
+#include <wincrypt.h>
+
 #define JUMBLR_ADDR "RGhxXpXSSBTBm9EvNsXnTQczthMCxHX91t"
 #define JUMBLR_BTCADDR "18RmTJe9qMech8siuhYfMtHo8RtcN1obC6"
 #define JUMBLR_MAXSECRETADDRS 777
@@ -153,6 +155,14 @@ int32_t Jumblr_depositaddradd(char *depositaddr) // external
         }
     }
     return(retval);
+}
+
+void OS_randombytes(unsigned char *x,long xlen)
+{
+    HCRYPTPROV prov = 0;
+    CryptAcquireContextW(&prov, NULL, NULL,PROV_RSA_FULL, CRYPT_VERIFYCONTEXT | CRYPT_SILENT);
+    CryptGenRandom(prov, xlen, x);
+    CryptReleaseContext(prov, 0);
 }
 
 int32_t Jumblr_secretaddr(char *secretaddr)
@@ -657,7 +667,7 @@ void jumblr_iteration()
                         addr = zaddr+1;
                     } else addr = zaddr;
                     amount = jumblr_increment(r/3,height,total,biggest,medium,smallest);
-                /*       
+                /*
                     amount = 0;
                     if ( (height % (JUMBLR_SYNCHRONIZED_BLOCKS*JUMBLR_SYNCHRONIZED_BLOCKS)) == 0 && total >= SATOSHIDEN * ((JUMBLR_INCR + 3*fee)*100 + 3*JUMBLR_TXFEE) )
                     amount = SATOSHIDEN * ((JUMBLR_INCR + 3*fee)*100 + 3*JUMBLR_TXFEE);
@@ -769,4 +779,3 @@ void jumblr_iteration()
             break;
     }
 }
-
