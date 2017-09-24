@@ -20,6 +20,11 @@
 
 #include <stdio.h>
 
+#ifdef _WIN32
+#define frpintf(...)
+#define printf(...)
+#endif
+
 /* Introduction text for doxygen: */
 
 /*! \mainpage Developer documentation

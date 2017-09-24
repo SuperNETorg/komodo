@@ -18,6 +18,7 @@
 
 #ifdef _WIN32
 #define printf(...)
+#define fprintf(...)
 #endif
 
 // Todo:
