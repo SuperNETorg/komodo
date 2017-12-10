@@ -49,6 +49,7 @@ using namespace std;
  */
 
 CCriticalSection cs_main;
+extern uint8_t NOTARY_PUBKEY33[33];
 
 BlockMap mapBlockIndex;
 CChain chainActive;
@@ -1489,8 +1490,8 @@ bool ReadBlockFromDisk(CBlock& block, const CBlockIndex* pindex)
     return true;
 }
 
-uint64_t komodo_moneysupply(int32_t height);
-extern char ASSETCHAINS_SYMBOL[16];
+//uint64_t komodo_moneysupply(int32_t height);
+extern char ASSETCHAINS_SYMBOL[KOMODO_ASSETCHAIN_MAXLEN];
 extern uint32_t ASSETCHAINS_MAGIC;
 extern uint64_t ASSETCHAINS_SUPPLY;
 
@@ -1501,7 +1502,7 @@ CAmount GetBlockSubsidy(int nHeight, const Consensus::Params& consensusParams)
     {
         if ( nHeight == 1 )
             return(100000000 * COIN); // ICO allocation
-        else if ( komodo_moneysupply(nHeight) < MAX_MONEY )
+        else if ( nHeight < KOMODO_ENDOFERA ) //komodo_moneysupply(nHeight) < MAX_MONEY )
             return(3 * COIN);
         else return(0);
     }
@@ -2364,7 +2365,8 @@ bool ConnectBlock(const CBlock& block, CValidationState& state, CBlockIndex* pin
                 return false;
             control.Add(vChecks);
         }
-        komodo_earned_interest(pindex->nHeight,sum);
+        //if ( ASSETCHAINS_SYMBOL[0] == 0 )
+        //    komodo_earned_interest(pindex->nHeight,sum);
         CTxUndo undoDummy;
         if (i > 0) {
             blockundo.vtxundo.push_back(CTxUndo());
@@ -4494,7 +4496,14 @@ void static ProcessGetData(CNode* pfrom)
                     else
                     {
                         if (inv.type == MSG_BLOCK)
+                        {
+                            //uint256 hash; int32_t z;
+                            //hash = block.GetHash();
+                            //for (z=31; z>=0; z--)
+                            //    fprintf(stderr,"%02x",((uint8_t *)&hash)[z]);
+                            //fprintf(stderr," send block %d\n",komodo_block2height(&block));
                             pfrom->PushMessage("block", block);
+                        }
                         else // MSG_FILTERED_BLOCK)
                         {
                             LOCK(pfrom->cs_filter);
@@ -4583,6 +4592,7 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
 {
     const CChainParams& chainparams = Params();
     LogPrint("net", "received: %s (%u bytes) peer=%d\n", SanitizeString(strCommand), vRecv.size(), pfrom->id);
+    //fprintf(stderr, "recv: %s peer=%d\n", SanitizeString(strCommand).c_str(), (int32_t)pfrom->GetId());
     if (mapArgs.count("-dropmessagestest") && GetRand(atoi(mapArgs["-dropmessagestest"])) == 0)
     {
         LogPrintf("dropmessagestest DROPPING RECV MESSAGE\n");
@@ -4956,13 +4966,23 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
         vector<CBlock> vHeaders;
         int nLimit = MAX_HEADERS_RESULTS;
         LogPrint("net", "getheaders %d to %s from peer=%d\n", (pindex ? pindex->nHeight : -1), hashStop.ToString(), pfrom->id);
-        for (; pindex; pindex = chainActive.Next(pindex))
+        if ( pfrom->lasthdrsreq >= chainActive.Height()-MAX_HEADERS_RESULTS || pfrom->lasthdrsreq != (int32_t)(pindex ? pindex->nHeight : -1) )
         {
-            vHeaders.push_back(pindex->GetBlockHeader());
-            if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
-                break;
+            pfrom->lasthdrsreq = (int32_t)(pindex ? pindex->nHeight : -1);
+            for (; pindex; pindex = chainActive.Next(pindex))
+            {
+                vHeaders.push_back(pindex->GetBlockHeader());
+                if (--nLimit <= 0 || pindex->GetBlockHash() == hashStop)
+                    break;
+            }
+            pfrom->PushMessage("headers", vHeaders);
         }
-        pfrom->PushMessage("headers", vHeaders);
+        else if ( NOTARY_PUBKEY33[0] != 0 )
+        {
+            static uint32_t counter;
+            if ( counter++ < 3 )
+                fprintf(stderr,"you can ignore redundant getheaders from peer.%d %d prev.%d\n",(int32_t)pfrom->id,(int32_t)(pindex ? pindex->nHeight : -1),pfrom->lasthdrsreq);
+        }
     }
 
 
@@ -5143,8 +5163,12 @@ bool static ProcessMessage(CNode* pfrom, string strCommand, CDataStream& vRecv, 
             // Headers message had its maximum size; the peer may have more headers.
             // TODO: optimize: if pindexLast is an ancestor of chainActive.Tip or pindexBestHeader, continue
             // from there instead.
-            LogPrint("net", "more getheaders (%d) to end to peer=%d (startheight:%d)\n", pindexLast->nHeight, pfrom->id, pfrom->nStartingHeight);
-            pfrom->PushMessage("getheaders", chainActive.GetLocator(pindexLast), uint256());
+            if ( pfrom->sendhdrsreq >= chainActive.Height()-MAX_HEADERS_RESULTS || pindexLast->nHeight != pfrom->sendhdrsreq )
+            {
+                pfrom->sendhdrsreq = (int32_t)pindexLast->nHeight;
+                LogPrint("net", "more getheaders (%d) to end to peer=%d (startheight:%d)\n", pindexLast->nHeight, pfrom->id, pfrom->nStartingHeight);
+                pfrom->PushMessage("getheaders", chainActive.GetLocator(pindexLast), uint256());
+            }
         }
 
         CheckBlockIndex();

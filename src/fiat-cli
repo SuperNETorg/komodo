@@ -41,6 +41,7 @@ echo bet; fiat/bet $1 $2 $3 $4
 echo crypto; fiat/crypto $1 $2 $3 $4
 echo hodl; fiat/hodl $1 $2 $3 $4
 echo shark; fiat/shark $1 $2 $3 $4
+echo mshark; fiat/mshark $1 $2 $3 $4
 echo bots; fiat/bots $1 $2 $3 $4
 echo mgw; fiat/mgw $1 $2 $3 $4
 #echo mvp; fiat/mvp $1 $2 $3 $4
@@ -49,3 +50,4 @@ echo wlc; fiat/wlc $1 $2 $3 $4
 echo kv; fiat/kv $1 $2 $3 $4
 echo ceal; fiat/ceal $1 $2 $3 $4
 echo mesh; fiat/mesh $1 $2 $3 $4
+echo mnz; fiat/mnz $1 $2 $3 $4
