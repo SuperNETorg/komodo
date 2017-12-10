@@ -18,6 +18,9 @@
 
 #include "crypto/equihash.h"
 #include "util.h"
+#ifndef __linux__
+#include "compat/endian.h"
+#endif
 
 #include <algorithm>
 #include <iostream>
@@ -25,6 +28,7 @@
 
 #include <boost/optional.hpp>
 
+/*
 #ifdef __APPLE__
 #include <machine/endian.h>
 #include <libkern/OSByteOrder.h>
@@ -48,7 +52,7 @@
 #define __LITTLE_ENDIAN LITTLE_ENDIAN
 #define __BYTE_ORDER    BYTE_ORDER
 #endif
-
+*/
 EhSolverCancelledException solver_cancelled;
 
 template<unsigned int N, unsigned int K>

@@ -20,6 +20,11 @@
 
 #include <stdio.h>
 
+#ifdef _WIN32
+#define frpintf(...)
+#define printf(...)
+#endif
+
 /* Introduction text for doxygen: */
 
 /*! \mainpage Developer documentation
@@ -37,7 +42,8 @@
  */
 
 static bool fDaemon;
-extern char ASSETCHAINS_SYMBOL[16];
+#define KOMODO_ASSETCHAIN_MAXLEN 65
+extern char ASSETCHAINS_SYMBOL[KOMODO_ASSETCHAIN_MAXLEN];
 void komodo_passport_iteration();
 
 void WaitForShutdown(boost::thread_group* threadGroup)
@@ -106,14 +112,18 @@ bool AppInit(int argc, char* argv[])
 
     try
     {
-        void komodo_args();
-        komodo_args();
-        fprintf(stderr,"call komodo_args NOTARY_PUBKEY.(%s)\n",NOTARY_PUBKEY.c_str());
+        void komodo_args(char *argv0);
+        komodo_args(argv[0]);
+        fprintf(stderr,"call komodo_args.(%s) NOTARY_PUBKEY.(%s)\n",argv[0],NOTARY_PUBKEY.c_str());
         while ( ASSETCHAIN_INIT == 0 )
         {
             //if ( komodo_is_issuer() != 0 )
             //    komodo_passport_iteration();
+            #ifdef _WIN32
+            boost::this_thread::sleep_for(boost::chrono::seconds(1));
+            #else
             sleep(1);
+            #endif
         }
         printf("initialized %s\n",ASSETCHAINS_SYMBOL);
         if (!boost::filesystem::is_directory(GetDataDir(false)))
@@ -164,7 +174,7 @@ bool AppInit(int argc, char* argv[])
             exit(1);
         }
 
-#ifndef WIN32
+#ifndef _WIN32
         fDaemon = GetBoolArg("-daemon", false);
         if (fDaemon)
         {
