@@ -71,26 +71,34 @@ void ThreadSendAlert()
     //
     CAlert alert;
     alert.nRelayUntil   = GetTime() + 15 * 60;
-    alert.nExpiration   = GetTime() + 365 * 60 * 60;
-    alert.nID           = 1000;  // use https://github.com/zcash/zcash/wiki/specification#assigned-numbers to keep track of alert IDs
+    alert.nExpiration   = GetTime() + 90 * 24 * 60 * 60;
+    alert.nID           = 1001;  // use https://github.com/zcash/zcash/wiki/specification#assigned-numbers to keep track of alert IDs
     alert.nCancel       = 0;   // cancels previous messages up to this ID number
 
     // These versions are protocol versions
-    // 70002 : 0.11.2.*
-    alert.nMinVer       = 70002;
-    alert.nMaxVer       = 70002;
+    // 170002 : 1.0.0
+    alert.nMinVer       = 170002;
+    alert.nMaxVer       = 170002;
 
     //
     // main.cpp: 
     //  1000 for Misc warnings like out of disk space and clock is wrong
     //  2000 for longer invalid proof-of-work chain 
     //  Higher numbers mean higher priority
-    alert.nPriority     = 5000;
+    //  4000 or higher will put the RPC into safe mode
+    alert.nPriority     = 1500;
     alert.strComment    = "";
-    alert.strStatusBar  = "URGENT: Upgrade required: see https://z.cash";
+    alert.strStatusBar  = "Your client is out of date and potentially vulnerable to denial of service. Please update to the most recent version of Zcash (1.0.5). More info at: https://z.cash/support/security.html";
+    alert.strRPCError   = "Your client is out of date and potentially vulnerable to denial of service. Please update to the most recent version of Zcash (1.0.5). More info at: https://z.cash/support/security.html";
 
     // Set specific client version/versions here. If setSubVer is empty, no filtering on subver is done:
-    // alert.setSubVer.insert(std::string("/Satoshi:0.7.2/"));
+    // alert.setSubVer.insert(std::string("/MagicBean:0.7.2/"));
+	alert.setSubVer.insert(std::string("/MagicBean:1.0.3/"));
+
+    // Sanity check
+    assert(alert.strComment.length() <= 65536); // max length in alert.h
+    assert(alert.strStatusBar.length() <= 256);
+    assert(alert.strRPCError.length() <= 256);
 
     // Sign
     const CChainParams& chainparams = Params();

@@ -41,7 +41,7 @@ void CUnsignedAlert::SetNull()
 
     strComment.clear();
     strStatusBar.clear();
-    strReserved.clear();
+    strRPCError.clear();
 }
 
 std::string CUnsignedAlert::ToString() const
@@ -50,7 +50,7 @@ std::string CUnsignedAlert::ToString() const
     BOOST_FOREACH(int n, setCancel)
         strSetCancel += strprintf("%d ", n);
     std::string strSetSubVer;
-    BOOST_FOREACH(std::string str, setSubVer)
+    BOOST_FOREACH(const std::string& str, setSubVer)
         strSetSubVer += "\"" + str + "\" ";
     return strprintf(
         "CAlert(\n"
@@ -66,6 +66,7 @@ std::string CUnsignedAlert::ToString() const
         "    nPriority    = %d\n"
         "    strComment   = \"%s\"\n"
         "    strStatusBar = \"%s\"\n"
+        "    strRPCError  = \"%s\"\n"
         ")\n",
         nVersion,
         nRelayUntil,
@@ -78,7 +79,8 @@ std::string CUnsignedAlert::ToString() const
         strSetSubVer,
         nPriority,
         strComment,
-        strStatusBar);
+        strStatusBar,
+        strRPCError);
 }
 
 void CAlert::SetNull()
@@ -110,7 +112,7 @@ bool CAlert::Cancels(const CAlert& alert) const
     return (alert.nID <= nCancel || setCancel.count(alert.nID));
 }
 
-bool CAlert::AppliesTo(int nVersion, std::string strSubVerIn) const
+bool CAlert::AppliesTo(int nVersion, const std::string& strSubVerIn) const
 {
     // TODO: rework for client-version-embedded-in-strSubVer ?
     return (IsInEffect() &&

@@ -12,8 +12,15 @@
 // NDSS ’16, 21-24 February 2016, San Diego, CA, USA
 // https://www.internetsociety.org/sites/default/files/blogs-media/equihash-asymmetric-proof-of-work-based-generalized-birthday-problem.pdf
 
+#if defined(HAVE_CONFIG_H)
+#include "config/bitcoin-config.h"
+#endif
+
 #include "crypto/equihash.h"
 #include "util.h"
+#ifndef __linux__
+#include "compat/endian.h"
+#endif
 
 #include <algorithm>
 #include <iostream>
@@ -21,6 +28,31 @@
 
 #include <boost/optional.hpp>
 
+/*
+#ifdef __APPLE__
+#include <machine/endian.h>
+#include <libkern/OSByteOrder.h>
+
+#define htobe16(x) OSSwapHostToBigInt16(x)
+#define htole16(x) OSSwapHostToLittleInt16(x)
+#define be16toh(x) OSSwapBigToHostInt16(x)
+#define le16toh(x) OSSwapLittleToHostInt16(x)
+
+#define htobe32(x) OSSwapHostToBigInt32(x)
+#define htole32(x) OSSwapHostToLittleInt32(x)
+#define be32toh(x) OSSwapBigToHostInt32(x)
+#define le32toh(x) OSSwapLittleToHostInt32(x)
+
+#define htobe64(x) OSSwapHostToBigInt64(x)
+#define htole64(x) OSSwapHostToLittleInt64(x)
+#define be64toh(x) OSSwapBigToHostInt64(x)
+#define le64toh(x) OSSwapLittleToHostInt64(x)
+
+#define __BIG_ENDIAN    BIG_ENDIAN
+#define __LITTLE_ENDIAN LITTLE_ENDIAN
+#define __BYTE_ORDER    BYTE_ORDER
+#endif
+*/
 EhSolverCancelledException solver_cancelled;
 
 template<unsigned int N, unsigned int K>
@@ -319,6 +351,7 @@ std::shared_ptr<eh_trunc> TruncatedStepRow<WIDTH>::GetTruncatedIndices(size_t le
     return p;
 }
 
+#ifdef ENABLE_MINING
 template<unsigned int N, unsigned int K>
 bool Equihash<N,K>::BasicSolve(const eh_HashState& base_state,
                                const std::function<bool(std::vector<unsigned char>)> validBlock,
@@ -711,6 +744,7 @@ invalidsolution:
 
     return false;
 }
+#endif // ENABLE_MINING
 
 template<unsigned int N, unsigned int K>
 bool Equihash<N,K>::IsValidSolution(const eh_HashState& base_state, std::vector<unsigned char> soln)
@@ -742,8 +776,8 @@ bool Equihash<N,K>::IsValidSolution(const eh_HashState& base_state, std::vector<
                 return false;
             }
             if (X[i+1].IndicesBefore(X[i], hashLen, lenIndices)) {
-                return false;
                 LogPrint("pow", "Invalid solution: Index tree incorrectly ordered\n");
+                return false;
             }
             if (!DistinctIndices(X[i], X[i+1], hashLen, lenIndices)) {
                 LogPrint("pow", "Invalid solution: duplicate indices\n");
@@ -762,40 +796,48 @@ bool Equihash<N,K>::IsValidSolution(const eh_HashState& base_state, std::vector<
 
 // Explicit instantiations for Equihash<96,3>
 template int Equihash<96,3>::InitialiseState(eh_HashState& base_state);
+#ifdef ENABLE_MINING
 template bool Equihash<96,3>::BasicSolve(const eh_HashState& base_state,
                                          const std::function<bool(std::vector<unsigned char>)> validBlock,
                                          const std::function<bool(EhSolverCancelCheck)> cancelled);
 template bool Equihash<96,3>::OptimisedSolve(const eh_HashState& base_state,
                                              const std::function<bool(std::vector<unsigned char>)> validBlock,
                                              const std::function<bool(EhSolverCancelCheck)> cancelled);
+#endif
 template bool Equihash<96,3>::IsValidSolution(const eh_HashState& base_state, std::vector<unsigned char> soln);
 
 // Explicit instantiations for Equihash<200,9>
 template int Equihash<200,9>::InitialiseState(eh_HashState& base_state);
+#ifdef ENABLE_MINING
 template bool Equihash<200,9>::BasicSolve(const eh_HashState& base_state,
                                           const std::function<bool(std::vector<unsigned char>)> validBlock,
                                           const std::function<bool(EhSolverCancelCheck)> cancelled);
 template bool Equihash<200,9>::OptimisedSolve(const eh_HashState& base_state,
                                               const std::function<bool(std::vector<unsigned char>)> validBlock,
                                               const std::function<bool(EhSolverCancelCheck)> cancelled);
+#endif
 template bool Equihash<200,9>::IsValidSolution(const eh_HashState& base_state, std::vector<unsigned char> soln);
 
 // Explicit instantiations for Equihash<96,5>
 template int Equihash<96,5>::InitialiseState(eh_HashState& base_state);
+#ifdef ENABLE_MINING
 template bool Equihash<96,5>::BasicSolve(const eh_HashState& base_state,
                                          const std::function<bool(std::vector<unsigned char>)> validBlock,
                                          const std::function<bool(EhSolverCancelCheck)> cancelled);
 template bool Equihash<96,5>::OptimisedSolve(const eh_HashState& base_state,
                                              const std::function<bool(std::vector<unsigned char>)> validBlock,
                                              const std::function<bool(EhSolverCancelCheck)> cancelled);
+#endif
 template bool Equihash<96,5>::IsValidSolution(const eh_HashState& base_state, std::vector<unsigned char> soln);
 
 // Explicit instantiations for Equihash<48,5>
 template int Equihash<48,5>::InitialiseState(eh_HashState& base_state);
+#ifdef ENABLE_MINING
 template bool Equihash<48,5>::BasicSolve(const eh_HashState& base_state,
                                          const std::function<bool(std::vector<unsigned char>)> validBlock,
                                          const std::function<bool(EhSolverCancelCheck)> cancelled);
 template bool Equihash<48,5>::OptimisedSolve(const eh_HashState& base_state,
                                              const std::function<bool(std::vector<unsigned char>)> validBlock,
                                              const std::function<bool(EhSolverCancelCheck)> cancelled);
+#endif
 template bool Equihash<48,5>::IsValidSolution(const eh_HashState& base_state, std::vector<unsigned char> soln);

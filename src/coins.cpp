@@ -6,6 +6,9 @@
 
 #include "memusage.h"
 #include "random.h"
+#include "version.h"
+#include "policy/fees.h"
+#include "komodo_defs.h"
 
 #include <assert.h>
 
@@ -100,7 +103,7 @@ CCoinsMap::const_iterator CCoinsViewCache::FetchCoins(const uint256 &txid) const
         // version as fresh.
         ret->second.flags = CCoinsCacheEntry::FRESH;
     }
-    cachedCoinsUsage += memusage::DynamicUsage(ret->second.coins);
+    cachedCoinsUsage += ret->second.coins.DynamicMemoryUsage();
     return ret;
 }
 
@@ -123,7 +126,7 @@ bool CCoinsViewCache::GetAnchorAt(const uint256 &rt, ZCIncrementalMerkleTree &tr
     CAnchorsMap::iterator ret = cacheAnchors.insert(std::make_pair(rt, CAnchorsCacheEntry())).first;
     ret->second.entered = true;
     ret->second.tree = tree;
-    cachedCoinsUsage += memusage::DynamicUsage(ret->second.tree);
+    cachedCoinsUsage += ret->second.tree.DynamicMemoryUsage();
 
     return true;
 }
@@ -162,7 +165,7 @@ void CCoinsViewCache::PushAnchor(const ZCIncrementalMerkleTree &tree) {
 
         if (insertRet.second) {
             // An insert took place
-            cachedCoinsUsage += memusage::DynamicUsage(ret->second.tree);
+            cachedCoinsUsage += ret->second.tree.DynamicMemoryUsage();
         }
 
         hashAnchor = newrt;
@@ -176,11 +179,20 @@ void CCoinsViewCache::PopAnchor(const uint256 &newrt) {
     // case restoring the "old" anchor during a reorg must
     // have no effect.
     if (currentRoot != newrt) {
-        CAnchorsMap::iterator ret = cacheAnchors.insert(std::make_pair(currentRoot, CAnchorsCacheEntry())).first;
+        // Bring the current best anchor into our local cache
+        // so that its tree exists in memory.
+        {
+            ZCIncrementalMerkleTree tree;
+            assert(GetAnchorAt(currentRoot, tree));
+        }
 
-        ret->second.entered = false;
-        ret->second.flags = CAnchorsCacheEntry::DIRTY;
+        // Mark the anchor as unentered, removing it from view
+        cacheAnchors[currentRoot].entered = false;
 
+        // Mark the cache entry as dirty so it's propagated
+        cacheAnchors[currentRoot].flags = CAnchorsCacheEntry::DIRTY;
+
+        // Mark the new root as the best anchor
         hashAnchor = newrt;
     }
 }
@@ -214,7 +226,7 @@ CCoinsModifier CCoinsViewCache::ModifyCoins(const uint256 &txid) {
             ret.first->second.flags = CCoinsCacheEntry::FRESH;
         }
     } else {
-        cachedCoinUsage = memusage::DynamicUsage(ret.first->second.coins);
+        cachedCoinUsage = ret.first->second.coins.DynamicMemoryUsage();
     }
     // Assume that whenever ModifyCoins is called, the entry will be modified.
     ret.first->second.flags |= CCoinsCacheEntry::DIRTY;
@@ -274,7 +286,7 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins,
                     assert(it->second.flags & CCoinsCacheEntry::FRESH);
                     CCoinsCacheEntry& entry = cacheCoins[it->first];
                     entry.coins.swap(it->second.coins);
-                    cachedCoinsUsage += memusage::DynamicUsage(entry.coins);
+                    cachedCoinsUsage += entry.coins.DynamicMemoryUsage();
                     entry.flags = CCoinsCacheEntry::DIRTY | CCoinsCacheEntry::FRESH;
                 }
             } else {
@@ -282,13 +294,13 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins,
                     // The grandparent does not have an entry, and the child is
                     // modified and being pruned. This means we can just delete
                     // it from the parent.
-                    cachedCoinsUsage -= memusage::DynamicUsage(itUs->second.coins);
+                    cachedCoinsUsage -= itUs->second.coins.DynamicMemoryUsage();
                     cacheCoins.erase(itUs);
                 } else {
                     // A normal modification.
-                    cachedCoinsUsage -= memusage::DynamicUsage(itUs->second.coins);
+                    cachedCoinsUsage -= itUs->second.coins.DynamicMemoryUsage();
                     itUs->second.coins.swap(it->second.coins);
-                    cachedCoinsUsage += memusage::DynamicUsage(itUs->second.coins);
+                    cachedCoinsUsage += itUs->second.coins.DynamicMemoryUsage();
                     itUs->second.flags |= CCoinsCacheEntry::DIRTY;
                 }
             }
@@ -303,16 +315,12 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins,
             CAnchorsMap::iterator parent_it = cacheAnchors.find(child_it->first);
 
             if (parent_it == cacheAnchors.end()) {
-                if (child_it->second.entered) {
-                    // Parent doesn't have an entry, but child has a new commitment root.
+                CAnchorsCacheEntry& entry = cacheAnchors[child_it->first];
+                entry.entered = child_it->second.entered;
+                entry.tree = child_it->second.tree;
+                entry.flags = CAnchorsCacheEntry::DIRTY;
 
-                    CAnchorsCacheEntry& entry = cacheAnchors[child_it->first];
-                    entry.entered = true;
-                    entry.tree = child_it->second.tree;
-                    entry.flags = CAnchorsCacheEntry::DIRTY;
-
-                    cachedCoinsUsage += memusage::DynamicUsage(entry.tree);
-                }
+                cachedCoinsUsage += entry.tree.DynamicMemoryUsage();
             } else {
                 if (parent_it->second.entered != child_it->second.entered) {
                     // The parent may have removed the entry.
@@ -332,14 +340,9 @@ bool CCoinsViewCache::BatchWrite(CCoinsMap &mapCoins,
             CNullifiersMap::iterator parent_it = cacheNullifiers.find(child_it->first);
 
             if (parent_it == cacheNullifiers.end()) {
-                if (child_it->second.entered) {
-                    // Parent doesn't have an entry, but child has a SPENT nullifier.
-                    // Move the spent nullifier up.
-
-                    CNullifiersCacheEntry& entry = cacheNullifiers[child_it->first];
-                    entry.entered = true;
-                    entry.flags = CNullifiersCacheEntry::DIRTY;
-                }
+                CNullifiersCacheEntry& entry = cacheNullifiers[child_it->first];
+                entry.entered = child_it->second.entered;
+                entry.flags = CNullifiersCacheEntry::DIRTY;
             } else {
                 if (parent_it->second.entered != child_it->second.entered) {
                     parent_it->second.entered = child_it->second.entered;
@@ -376,15 +379,43 @@ const CTxOut &CCoinsViewCache::GetOutputFor(const CTxIn& input) const
     return coins->vout[input.prevout.n];
 }
 
-CAmount CCoinsViewCache::GetValueIn(const CTransaction& tx) const
+const CScript &CCoinsViewCache::GetSpendFor(const CTxIn& input) const
 {
-    if (tx.IsCoinBase())
+    const CCoins* coins = AccessCoins(input.prevout.hash);
+    assert(coins);
+    return coins->vout[input.prevout.n].scriptPubKey;
+}
+
+//uint64_t komodo_interest(int32_t txheight,uint64_t nValue,uint32_t nLockTime,uint32_t tiptime);
+uint64_t komodo_accrued_interest(int32_t *txheightp,uint32_t *locktimep,uint256 hash,int32_t n,int32_t checkheight,uint64_t checkvalue);
+extern char ASSETCHAINS_SYMBOL[KOMODO_ASSETCHAIN_MAXLEN];
+
+CAmount CCoinsViewCache::GetValueIn(int32_t nHeight,int64_t *interestp,const CTransaction& tx,uint32_t tiptime) const
+{
+    if ( interestp != 0 )
+        *interestp = 0;
+    if ( tx.IsCoinBase() != 0 )
         return 0;
-
-    CAmount nResult = 0;
+    CAmount value,nResult = 0;
     for (unsigned int i = 0; i < tx.vin.size(); i++)
-        nResult += GetOutputFor(tx.vin[i]).nValue;
-
+    {
+        value = GetOutputFor(tx.vin[i]).nValue;
+        nResult += value;
+#ifdef KOMODO_ENABLE_INTEREST
+        if ( ASSETCHAINS_SYMBOL[0] == 0 && nHeight >= 60000 )
+        {
+            if ( value >= 10*COIN )
+            {
+                int64_t interest; int32_t txheight; uint32_t locktime;
+                interest = komodo_accrued_interest(&txheight,&locktime,tx.vin[i].prevout.hash,tx.vin[i].prevout.n,0,value);
+                //printf("nResult %.8f += val %.8f interest %.8f ht.%d lock.%u tip.%u\n",(double)nResult/COIN,(double)value/COIN,(double)interest/COIN,txheight,locktime,tiptime);
+                //fprintf(stderr,"nResult %.8f += val %.8f interest %.8f ht.%d lock.%u tip.%u\n",(double)nResult/COIN,(double)value/COIN,(double)interest/COIN,txheight,locktime,tiptime);
+                nResult += interest;
+                (*interestp) += interest;
+            }
+        }
+#endif
+    }
     nResult += tx.GetJoinSplitValueIn();
 
     return nResult;
@@ -442,6 +473,18 @@ double CCoinsViewCache::GetPriority(const CTransaction &tx, int nHeight) const
 {
     if (tx.IsCoinBase())
         return 0.0;
+    //CAmount nTotalIn = 0;
+    
+    // Joinsplits do not reveal any information about the value or age of a note, so we
+    // cannot apply the priority algorithm used for transparent utxos.  Instead, we just
+    // use the maximum priority whenever a transaction contains any JoinSplits.
+    // (Note that coinbase transactions cannot contain JoinSplits.)
+    // FIXME: this logic is partially duplicated between here and CreateNewBlock in miner.cpp.
+    
+    if (tx.vjoinsplit.size() > 0) {
+            return MAX_PRIORITY;
+        }
+
     double dResult = 0.0;
     BOOST_FOREACH(const CTxIn& txin, tx.vin)
     {
@@ -450,8 +493,34 @@ double CCoinsViewCache::GetPriority(const CTransaction &tx, int nHeight) const
         if (!coins->IsAvailable(txin.prevout.n)) continue;
         if (coins->nHeight < nHeight) {
             dResult += coins->vout[txin.prevout.n].nValue * (nHeight-coins->nHeight);
+            //nTotalIn += coins->vout[txin.prevout.n].nValue;
         }
     }
+
+    // If a transaction contains a joinsplit, we boost the priority of the transaction.
+    // Joinsplits do not reveal any information about the value or age of a note, so we
+    // cannot apply the priority algorithm used for transparent utxos.  Instead, we pick a
+    // very large number and multiply it by the transaction's fee per 1000 bytes of data.
+    // One trillion, 1000000000000, is equivalent to 1 ZEC utxo * 10000 blocks (~17 days).
+    /*if (tx.vjoinsplit.size() > 0) {
+        unsigned int nTxSize = ::GetSerializeSize(tx, SER_NETWORK, PROTOCOL_VERSION);
+        nTotalIn += tx.GetJoinSplitValueIn();
+        CAmount fee = nTotalIn - tx.GetValueOut();
+        CFeeRate feeRate(fee, nTxSize);
+        CAmount feePerK = feeRate.GetFeePerK();
+
+        if (feePerK == 0) {
+            feePerK = 1;
+        }
+
+        dResult += 1000000000000 * double(feePerK);
+        // We cast feePerK from int64_t to double because if feePerK is a large number, say
+        // close to MAX_MONEY, the multiplication operation will result in an integer overflow.
+        // The variable dResult should never overflow since a 64-bit double in C++ is typically
+        // a double-precision floating-point number as specified by IEE 754, with a maximum
+        // value DBL_MAX of 1.79769e+308.
+    }*/
+
     return tx.ComputePriority(dResult);
 }
 
@@ -470,6 +539,6 @@ CCoinsModifier::~CCoinsModifier()
         cache.cacheCoins.erase(it);
     } else {
         // If the coin still exists after the modification, add the new usage
-        cache.cachedCoinsUsage += memusage::DynamicUsage(it->second.coins);
+        cache.cachedCoinsUsage += it->second.coins.DynamicMemoryUsage();
     }
 }
