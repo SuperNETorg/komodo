@@ -30,7 +30,9 @@ using namespace std;
  * + Contains no strange transactions
  */
 void *chainparams_commandline(void *ptr);
-extern char ASSETCHAINS_SYMBOL[16];
+#include "komodo_defs.h"
+
+extern char ASSETCHAINS_SYMBOL[KOMODO_ASSETCHAIN_MAXLEN];
 extern uint16_t ASSETCHAINS_PORT;
 extern uint32_t ASSETCHAIN_INIT;
 extern uint32_t ASSETCHAINS_MAGIC;
@@ -57,7 +59,7 @@ public:
         consensus.nPowMaxAdjustUp = 16; // 16% adjustment up
         consensus.nPowTargetSpacing = 1 * 60;
         consensus.fPowAllowMinDifficultyBlocks = true; //false;
-        /** 
+        /**
          * The message start string is designed to be unlikely to occur in normal data.
          * The characters are rarely used upper ASCII, not valid as UTF-8, and produce
          * a large 32-bit integer with any alignment.
@@ -131,7 +133,7 @@ public:
         };
         if ( pthread_create((pthread_t *)malloc(sizeof(pthread_t)),NULL,chainparams_commandline,(void *)&consensus) != 0 )
         {
-            
+
         }
     }
 };
@@ -141,7 +143,11 @@ void *chainparams_commandline(void *ptr)
 {
     while ( ASSETCHAINS_PORT == 0 )
     {
+        #ifdef _WIN32
+        boost::this_thread::sleep(boost::posix_time::milliseconds(1000));
+        #else
         sleep(1);
+        #endif
     }
     //fprintf(stderr,">>>>>>>> port.%u\n",ASSETCHAINS_PORT);
     if ( ASSETCHAINS_SYMBOL[0] != 0 )

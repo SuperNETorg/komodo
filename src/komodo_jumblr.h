@@ -24,6 +24,11 @@
  z_sendmany "fromaddress" [{"address":... ,"amount":..., "memo":"<hex>"},...] ( minconf ) ( fee )
  */
 
+#ifdef _WIN32
+#include <wincrypt.h>
+#endif
+#include "komodo_defs.h"
+
 #define JUMBLR_ADDR "RGhxXpXSSBTBm9EvNsXnTQczthMCxHX91t"
 #define JUMBLR_BTCADDR "18RmTJe9qMech8siuhYfMtHo8RtcN1obC6"
 #define JUMBLR_MAXSECRETADDRS 777
@@ -137,7 +142,7 @@ int32_t Jumblr_depositaddradd(char *depositaddr) // external
         {
             if ( (retjson= cJSON_Parse(retstr)) != 0 )
             {
-                if ( (ismine= jobj(retjson,(char *)"ismine")) != 0 && is_cJSON_True(ismine) != 0 )
+                if ( (ismine= jobj(retjson,(char *)"ismine")) != 0 && cJSON_IsTrue(ismine) != 0 )
                 {
                     retval = 0;
                     safecopy(Jumblr_deposit,depositaddr,sizeof(Jumblr_deposit));
@@ -145,7 +150,7 @@ int32_t Jumblr_depositaddradd(char *depositaddr) // external
                 else
                 {
                     retval = JUMBLR_ERROR_NOTINWALLET;
-                    printf("%s not in wallet: ismine.%p %d %s\n",depositaddr,ismine,is_cJSON_True(ismine),jprint(retjson,0));
+                    printf("%s not in wallet: ismine.%p %d %s\n",depositaddr,ismine,cJSON_IsTrue(ismine),jprint(retjson,0));
                 }
                 free_json(retjson);
             }
@@ -154,6 +159,16 @@ int32_t Jumblr_depositaddradd(char *depositaddr) // external
     }
     return(retval);
 }
+
+#ifdef _WIN32
+void OS_randombytes(unsigned char *x,long xlen)
+{
+    HCRYPTPROV prov = 0;
+    CryptAcquireContextW(&prov, NULL, NULL,PROV_RSA_FULL, CRYPT_VERIFYCONTEXT | CRYPT_SILENT);
+    CryptGenRandom(prov, xlen, x);
+    CryptReleaseContext(prov, 0);
+}
+#endif
 
 int32_t Jumblr_secretaddr(char *secretaddr)
 {
@@ -352,7 +367,7 @@ int64_t jumblr_balance(char *addr)
             //printf("jumblr.[%s].(%s)\n","KMD",retstr);
             if ( (retjson= cJSON_Parse(retstr)) != 0 )
             {
-                if ( (n= cJSON_GetArraySize(retjson)) > 0 && is_cJSON_Array(retjson) != 0 )
+                if ( (n= cJSON_GetArraySize(retjson)) > 0 && cJSON_IsArray(retjson) != 0 )
                     for (i=0; i<n; i++)
                         balance += SATOSHIDEN * jdouble(jitem(retjson,i),(char *)"amount");
                 free_json(retjson);
@@ -422,7 +437,7 @@ void jumblr_opidupdate(struct jumblr_item *ptr)
         {
             if ( (retjson= cJSON_Parse(retstr)) != 0 )
             {
-                if ( cJSON_GetArraySize(retjson) == 1 && is_cJSON_Array(retjson) != 0 )
+                if ( cJSON_GetArraySize(retjson) == 1 && cJSON_IsArray(retjson) != 0 )
                 {
                     item = jitem(retjson,0);
                     //printf("%s\n",jprint(item,0));
@@ -482,6 +497,10 @@ void jumblr_prune(struct jumblr_item *ptr)
     }
 }
 
+
+bits256 jbits256(cJSON *json,char *field);
+
+
 void jumblr_zaddrinit(char *zaddr)
 {
     struct jumblr_item *ptr; char *retstr,*totalstr; cJSON *item,*array; double total; bits256 txid; char txidstr[65],t_z,z_z;
@@ -494,7 +513,7 @@ void jumblr_zaddrinit(char *zaddr)
                 if ( (array= cJSON_Parse(retstr)) != 0 )
                 {
                     t_z = z_z = 0;
-                    if ( cJSON_GetArraySize(array) == 1 && is_cJSON_Array(array) != 0 )
+                    if ( cJSON_GetArraySize(array) == 1 && cJSON_IsArray(array) != 0 )
                     {
                         item = jitem(array,0);
                         if ( (uint64_t)((total+0.0000000049) * SATOSHIDEN) == (uint64_t)((jdouble(item,(char *)"amount")+0.0000000049) * SATOSHIDEN) )
@@ -545,7 +564,7 @@ void jumblr_opidsupdate()
     {
         if ( (array= cJSON_Parse(retstr)) != 0 )
         {
-            if ( (n= cJSON_GetArraySize(array)) > 0 && is_cJSON_Array(array) != 0 )
+            if ( (n= cJSON_GetArraySize(array)) > 0 && cJSON_IsArray(array) != 0 )
             {
                 //printf("%s -> n%d\n",retstr,n);
                 for (i=0; i<n; i++)
@@ -611,13 +630,15 @@ void jumblr_iteration()
 {
     static int32_t lastheight; static uint32_t lasttime;
     char *zaddr,*addr,*retstr,secretaddr[64]; cJSON *array; int32_t i,iter,height,counter,chosen_one,n; uint64_t smallest,medium,biggest,amount=0,total=0; double fee; struct jumblr_item *ptr,*tmp; uint16_t r,s;
+    if ( JUMBLR_PAUSE != 0 )
+        return;
     if ( lasttime == 0 )
     {
         if ( (retstr= jumblr_zlistaddresses()) != 0 )
         {
             if ( (array= cJSON_Parse(retstr)) != 0 )
             {
-                if ( (n= cJSON_GetArraySize(array)) > 0 && is_cJSON_Array(array) != 0 )
+                if ( (n= cJSON_GetArraySize(array)) > 0 && cJSON_IsArray(array) != 0 )
                 {
                     for (i=0; i<n; i++)
                         jumblr_zaddrinit(jstri(array,i));
@@ -657,7 +678,7 @@ void jumblr_iteration()
                         addr = zaddr+1;
                     } else addr = zaddr;
                     amount = jumblr_increment(r/3,height,total,biggest,medium,smallest);
-                /*       
+                /*
                     amount = 0;
                     if ( (height % (JUMBLR_SYNCHRONIZED_BLOCKS*JUMBLR_SYNCHRONIZED_BLOCKS)) == 0 && total >= SATOSHIDEN * ((JUMBLR_INCR + 3*fee)*100 + 3*JUMBLR_TXFEE) )
                     amount = SATOSHIDEN * ((JUMBLR_INCR + 3*fee)*100 + 3*JUMBLR_TXFEE);
@@ -769,4 +790,3 @@ void jumblr_iteration()
             break;
     }
 }
-

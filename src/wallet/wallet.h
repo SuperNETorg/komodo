@@ -161,7 +161,7 @@ public:
     // Transaction hash
     uint256 hash;
     // Index into CTransaction.vjoinsplit
-#ifdef __APPLE__
+#ifdef __LP64__
     uint64_t js;
 #else
     size_t js;
@@ -288,7 +288,7 @@ public:
     uint256 hashBlock;
     std::vector<uint256> vMerkleBranch;
     int nIndex;
-    
+
     // memory only
     mutable bool fMerkleVerified;
 
@@ -337,7 +337,7 @@ public:
     bool AcceptToMemoryPool(bool fLimitFree=true, bool fRejectAbsurdFee=true);
 };
 
-/** 
+/**
  * A transaction with a bunch of additional info that only the owner cares about.
  * It includes any unrecorded transactions needed to link it back to the block chain.
  */
@@ -577,14 +577,14 @@ public:
 
 
 
-/** 
+/**
  * A CWallet is an extension of a keystore, which also maintains a set of transactions and balances,
  * and provides the ability to create new transactions.
  */
 class CWallet : public CCryptoKeyStore, public CValidationInterface
 {
 private:
-    bool SelectCoins(const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, bool& fOnlyCoinbaseCoinsRet, bool& fNeedCoinbaseCoinsRet, const CCoinControl *coinControl = NULL,uint64_t *interestp = NULL) const;
+    bool SelectCoins(const CAmount& nTargetValue, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet, bool& fOnlyCoinbaseCoinsRet, bool& fNeedCoinbaseCoinsRet, const CCoinControl *coinControl = NULL) const;
 
     CWalletDB *pwalletdbEncryption;
 
@@ -811,7 +811,7 @@ public:
     bool CanSupportFeature(enum WalletFeature wf) { AssertLockHeld(cs_wallet); return nWalletMaxVersion >= wf; }
 
     void AvailableCoins(std::vector<COutput>& vCoins, bool fOnlyConfirmed=true, const CCoinControl *coinControl = NULL, bool fIncludeZeroValue=false, bool fIncludeCoinBase=true) const;
-    bool SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int nConfTheirs, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet,uint64_t *interestp) const;
+    bool SelectCoinsMinConf(const CAmount& nTargetValue, int nConfMine, int nConfTheirs, std::vector<COutput> vCoins, std::set<std::pair<const CWalletTx*,unsigned int> >& setCoinsRet, CAmount& nValueRet) const;
 
     bool IsSpent(const uint256& hash, unsigned int n) const;
     bool IsSpent(const uint256& nullifier) const;
@@ -880,7 +880,7 @@ public:
     //! Adds an encrypted spending key to the store, and saves it to disk (virtual method, declared in crypter.h)
     bool AddCryptedSpendingKey(const libzcash::PaymentAddress &address, const libzcash::ViewingKey &vk, const std::vector<unsigned char> &vchCryptedSecret);
 
-    /** 
+    /**
      * Increment the next transaction order id
      * @return next transaction order id
      */
@@ -1012,8 +1012,8 @@ public:
 
     //! Verify the wallet database and perform salvage if required
     static bool Verify(const std::string& walletFile, std::string& warningString, std::string& errorString);
-    
-    /** 
+
+    /**
      * Address book entry changed.
      * @note called with lock cs_wallet held.
      */
@@ -1022,7 +1022,7 @@ public:
             const std::string &purpose,
             ChangeType status)> NotifyAddressBookChanged;
 
-    /** 
+    /**
      * Wallet transaction added, removed or updated.
      * @note called with lock cs_wallet held.
      */
@@ -1039,10 +1039,10 @@ public:
     bool GetBroadcastTransactions() const { return fBroadcastTransactions; }
     /** Set whether this wallet broadcasts transactions. */
     void SetBroadcastTransactions(bool broadcast) { fBroadcastTransactions = broadcast; }
-    
+
     /* Find notes filtered by payment address, min depth, ability to spend */
     void GetFilteredNotes(std::vector<CNotePlaintextEntry> & outEntries, std::string address, int minDepth=1, bool ignoreSpent=true);
-    
+
 };
 
 /** A key allocated from the key pool. */
@@ -1070,7 +1070,7 @@ public:
 };
 
 
-/** 
+/**
  * Account information.
  * Stored in wallet with key "acc"+string account name.
  */
@@ -1101,7 +1101,7 @@ public:
 
 
 
-/** 
+/**
  * Internal transfers.
  * Database key is acentry<account><counter>.
  */
